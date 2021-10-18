@@ -46,18 +46,13 @@ losses = []
 
 lr_scheduler = tf.keras.optimizers.schedules.PolynomialDecay(
       initial_learning_rate=config.learning_rate,
-      decay_steps=config.epochs*len(train),
+      decay_steps=config.epochs*len(train_dataset),
       end_learning_rate=0.00001)
 
 optimizer = tf.keras.optimizers.Adam(learning_rate=lr_scheduler)
 loss_metric = tf.keras.metrics.Mean()
 spce_loss = tf.keras.losses.SparseCategoricalCrossentropy()
 
-
-
-
-optimizer = tf.keras.optimizers.SGD(learning_rate=learning_rate_fn)
-loss_fn = keras.losses.SparseCategoricalCrossentropy(from_logits=True)
 
 for epoch in range(config.epochs):
 
