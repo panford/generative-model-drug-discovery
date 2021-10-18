@@ -1,6 +1,8 @@
 from tensorflow import keras 
+import tensorflow as tf
 from tensorflow.keras import Model
 from tensorflow import Tensor
+from tensorflow.keras.backend import random_normal
 from tensorflow.keras.layers import (Lambda, 
                                     Input, 
                                     RepeatVector, 
@@ -9,7 +11,7 @@ from tensorflow.keras.layers import (Lambda,
                                     Dense, Bidirectional, 
                                     Concatenate)      
 
-def encoder_model(num_chars:  int, 
+def vae_encoder(num_chars:  int, 
                 embedding_dim:int, 
                 max_seq_len:  int, 
                 latent_dim:   int, 
@@ -62,7 +64,7 @@ def reparameterization(inputs:Tensor):
   
   return mu + tf.exp(0.5*sigma) * eps
 
-def decoder_model(num_chars:  int, 
+def vae_decoder(num_chars:  int, 
                   max_seq_len:int, 
                   latent_dim: int, 
                   n_units:    int):
@@ -148,5 +150,17 @@ def vae_model(encoder:Model, decoder:Model, max_seq_len:int):
   model.add_loss(loss)
 
   return model
+
+# Initialize vae model
+def init_vae_models(num_chars, embedding_dim, max_seq_len, latent_dim, n_units):
+  """ Model initializations here """
+
+  encoder = vae_encoder(num_chars, embedding_dim, max_seq_len, latent_dim, n_units)
+  decoder = vae_decoder(num_chars, max_seq_len, latent_dim, n_units)
+  vae = vae_model(encoder, decoder, max_seq_len)
+  
+  return encoder, decoder, vae
+
+
 
 

@@ -1,0 +1,9 @@
+num_props 3         
+latent_dim 100       
+batch_size 32         
+embedding_dim 200     
+num_chars 2                
+n_units 96               
+learning_rate 0.002    
+rate 0.0
+annealing_rate 0.0001 
