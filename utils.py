@@ -1,5 +1,8 @@
 #@title Utility functions for SMILES property computation
 # Define utility functions here
+from tensorflow.keras.backend import random_normal
+from rdkit.Chem import Descriptors, QED
+
 def compute_smile_prop(smile):
 
   """ 
@@ -49,3 +52,19 @@ def canonicalize(smile):
   """Function to canonicalise smiles inputs sequence"""
 
   return Chem.MolToSmiles(Chem.MolFromSmiles(smile))
+
+
+def sample_prior(batch_size:int, 
+                latent_dim:int):
+
+  """
+  Sample prior       :  Sample for random normal distribution
+  Inputs:
+    batch_size (int) : number of samples to generate
+    latent_dim (int) : latent dimension
+
+  Outputs
+    samples from normal distribution (size = (batch_size, latent_dim))
+  """
+
+  return random_normal((batch_size, latent_dim))

@@ -1,7 +1,19 @@
 from tensorflow import keras 
+from tensorflow.keras import Model
+from tensorflow import Tensor
+from tensorflow.keras.layers import (Lambda, 
+                                    Input, 
+                                    RepeatVector, 
+                                    TimeDistributed,
+                                    Embedding, LSTM, 
+                                    Dense, Bidirectional, 
+                                    Concatenate)      
 
-
-def encoder_model(num_chars, embedding_dim, max_seq_len, latent_dim, n_units):
+def encoder_model(num_chars:  int, 
+                embedding_dim:int, 
+                max_seq_len:  int, 
+                latent_dim:   int, 
+                n_units:      int):
 
   '''
   Encoder 
@@ -26,10 +38,10 @@ def encoder_model(num_chars, embedding_dim, max_seq_len, latent_dim, n_units):
   model = tf.keras.Model(inputs, outputs = [mu, sigma])
   return model
 
-plot_model(encoder_model(num_chars, embedding_dim, max_seq_len, latent_dim, n_units), dpi=70)
+# plot_model(encoder_model(num_chars, embedding_dim, max_seq_len, latent_dim, n_units), dpi=70)
 
 
-def reparameterization(inputs):
+def reparameterization(inputs:Tensor):
 
   
   """
@@ -50,7 +62,10 @@ def reparameterization(inputs):
   
   return mu + tf.exp(0.5*sigma) * eps
 
-def decoder_model(num_chars, max_seq_len, latent_dim, n_units):
+def decoder_model(num_chars:  int, 
+                  max_seq_len:int, 
+                  latent_dim: int, 
+                  n_units:    int):
 
   """
   Decoder 
@@ -76,22 +91,11 @@ def decoder_model(num_chars, max_seq_len, latent_dim, n_units):
   return model
 
 
-def sample_prior(batch_size, latent_dim):
 
-  """
-  Sample prior       :  Sample for random normal distribution
-  Inputs:
-    batch_size (int) : number of samples to generate
-    latent_dim (int) : latent dimension
-
-  Outputs
-    samples from normal distribution (size = (batch_size, latent_dim))
-  """
-
-  return random_normal((batch_size, latent_dim))
-
-
-def kl_divergence_loss(inputs, outputs, mu, sigma):
+def kl_divergence_loss(inputs:Tensor, 
+                      outputs:Tensor, 
+                      mu:float, 
+                      sigma:float):
   
   """ 
   Computes the Kullback-Leibler Divergence (KLD) loss
@@ -111,7 +115,7 @@ def kl_divergence_loss(inputs, outputs, mu, sigma):
 
   return kl_loss 
 
-def vae_model(encoder, decoder, max_seq_len):
+def vae_model(encoder:Model, decoder:Model, max_seq_len:int):
 
   
   """

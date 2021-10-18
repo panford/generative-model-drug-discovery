@@ -1,16 +1,14 @@
 import tensorflow.keras as keras
+import tensorflow as tf
+import argparse
 
-flags = tf.flags
+parser = argparse.ArgumentParser()
+parser.add_argument('--epochs', '-e', default = 100, help='Number of training epochs')
+parser.add_argument('--num_chars', '-nc', default=max, help='number of unique SMILES characters')
 
-flags.DEFINE_integer("epochs", 100, "Number of epochs")
-flags.DEFINE_integer("num_chars", 120, "Number of unique num_chars" )
+args = parser.parse_args()
 
-
-# Training loop. 
-
-epochs = 150 # Set the number of training epochs
-
-encoder = encoder_model(num_chars, embedding_dim, max_seq_len, latent_dim, n_units)
+encoder = encoder_model(args.num_chars, args.embedding_dim, max_seq_len, latent_dim, n_units)
 decoder = decoder_model(num_chars, max_seq_len, latent_dim, n_units)
 vae = vae_model(encoder, decoder, max_seq_len)
 # prior = sample_prior(1, latent_dim)
