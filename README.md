@@ -1,1 +1,3 @@
-# generative-model-drug-discovery
+Generative Models for Drug Discovery
+
+
