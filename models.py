@@ -1,6 +1,7 @@
 from tensorflow import keras 
 import tensorflow as tf
 from tensorflow.keras import Model
+from tensorflow.keras.layers import Layer
 from tensorflow import Tensor
 from tensorflow.keras.backend import random_normal
 from tensorflow.keras.layers import (Lambda, 
@@ -9,14 +10,10 @@ from tensorflow.keras.layers import (Lambda,
                                     TimeDistributed,
                                     Embedding, LSTM, 
                                     Dense, Bidirectional, 
-                                    Concatenate)      
+                                    Concatenate,
+                                    LayerNormalization)      
 
-def vae_encoder(num_chars:  int, 
-                embedding_dim:int, 
-                max_seq_len:  int, 
-                latent_dim:   int, 
-                n_units:      int):
-
+class vae_encoder(Model):
   '''
   Encoder 
 
@@ -31,21 +28,45 @@ def vae_encoder(num_chars:  int,
     (Keras Model Object) : takes data inputs and returns parameters of learned latent distribution 
   '''
 
-  inputs = Input(shape = (max_seq_len, ))
-  embedding = Embedding(num_chars, embedding_dim, input_length=max_seq_len, mask_zero=True)(inputs)
-  x = Bidirectional(LSTM(n_units))(embedding)
-  x = Dense(latent_dim*2)(x)
-  mu = Dense(latent_dim)(x)
-  sigma = Dense(latent_dim)(x)
-  model = tf.keras.Model(inputs, outputs = [mu, sigma])
-  return model
+  def __init__(self,num_chars:  int, 
+                    embedding_dim:int, 
+                    max_seq_len:  int, 
+                    latent_dim:   int, 
+                    n_units:      int):
 
-# plot_model(encoder_model(num_chars, embedding_dim, max_seq_len, latent_dim, n_units), dpi=70)
+    super(vae_encoder, self).__init__()
 
 
-def reparameterization(inputs:Tensor):
+    self.embedding = Embedding(num_chars, embedding_dim, input_length=max_seq_len, mask_zero=True)
+    self.bilstm1 = Bidirectional(LSTM(n_units, return_sequences=True))
+    self.bilstm2 = Bidirectional(LSTM(2*n_units, return_sequences=True))
+    self.bilstm3 = Bidirectional(LSTM(4*n_units))
 
-  
+    self.layernorm1 = LayerNormalization(axis=-1)
+    self.layernorm2 = LayerNormalization(axis=-1)
+    self.layernorm3 = LayerNormalization(axis=-1)
+
+    self.dense1 = Dense(latent_dim*2)
+    self.mu = Dense(latent_dim)
+    self.sigma = Dense(latent_dim)
+
+
+  def call(self, inputs):
+    x = self.embedding(inputs)
+    x = self.bilstm1(x)
+    x = self.layernorm1(x)
+    x = self.bilstm2(x)
+    x = self.layernorm2(x)
+    x = self.bilstm3(x)
+    x = self.layernorm3(x)
+    x = self.dense1(x)
+    mu = self.mu(x)
+    sigma = self.sigma(x)
+    return mu, sigma
+
+
+
+class reparameterization(Layer):
   """
   Reparameterization function--> takes mean and sigma and reparameterize with samples
    drawn from a standard normal distribution with mean 0 and standard deviation 1. 
@@ -57,18 +78,18 @@ def reparameterization(inputs:Tensor):
     z        : latent code 
 
    """
-  mu, sigma = inputs
-  batch_ = tf.shape(mu)[0]
-  dim = tf.shape(mu)[1]
-  eps = random_normal((batch_, dim))
   
-  return mu + tf.exp(0.5*sigma) * eps
+  # def __init__(self, ):
 
-def vae_decoder(num_chars:  int, 
-                  max_seq_len:int, 
-                  latent_dim: int, 
-                  n_units:    int):
+  def call(self, mu, sigma):
+    batch_ = tf.shape(mu)[0]
+    dim = tf.shape(mu)[1]
+    eps = random_normal((batch_, dim))
+    
+    return mu + tf.exp(0.5*sigma) * eps
 
+
+class vae_decoder(Model):
   """
   Decoder 
 
@@ -82,23 +103,36 @@ def vae_decoder(num_chars:  int,
     (Keras Model Object) : takes latent vectors as inputs and returns a 
                            softmax distribution over character set 
   """
+  def __init__(self,num_chars:  int, 
+                    max_seq_len:int, 
+                    latent_dim: int, 
+                    n_units:    int):
+    super(vae_decoder, self).__init__()
+
+    self.repeatvect = RepeatVector(max_seq_len)
+    self.lstm1 = LSTM(n_units, return_sequences=True)
+    self.layernorm1 = LayerNormalization(axis=-1)
+    self.lstm2 = LSTM(2*n_units, return_sequences=True)
+    self.layernorm2 = LayerNormalization(axis = -1)
+    self.lstm3 = LSTM(4*n_units, return_sequences=True)
+    self.layernorm3 = LayerNormalization(axis=-1)
+    self.final_dense = Dense(num_chars, activation='softmax')
+
+  def call(self, inputs):
+    x = self.repeatvect(inputs)
+    x = self.lstm1(x)
+    x = self.layernorm1(x)
+    x = self.lstm2(x)
+    x = self.layernorm2(x)
+    x = self.lstm3(x)
+    x = self.layernorm3(x)
+    x = self.final_dense(x)
+    return x
 
 
-  inputs = Input(shape = (latent_dim))
-  x = RepeatVector(max_seq_len)(inputs)
-  lstm_out = LSTM(n_units, return_sequences=True)(x)
-  output = Dense(num_chars, activation='softmax')(lstm_out)
-
-  model = Model(inputs, output)
-  return model
 
 
-
-def kl_divergence_loss(inputs:Tensor, 
-                      outputs:Tensor, 
-                      mu:float, 
-                      sigma:float):
-  
+class kl_divergence_loss():
   """ 
   Computes the Kullback-Leibler Divergence (KLD) loss
   Inputs
@@ -110,18 +144,17 @@ def kl_divergence_loss(inputs:Tensor,
   Outputs:
     KL Divergence loss
   # """
+  def __init__(self, rate=0.5):
+    self.rate = rate
 
-  rate = 0.5
-  kl_loss = 1 + sigma - tf.square(mu) - tf.math.exp(sigma)
-  kl_loss = -rate * tf.reduce_mean(kl_loss)
+  def __call__(self, mu, sigma):
+    kl_loss = 1. + sigma - tf.square(mu) - tf.math.exp(sigma)
+    kl_loss = -self.rate * tf.reduce_mean(kl_loss)
+    return kl_loss 
 
-  return kl_loss 
-
-def vae_model(encoder:Model, decoder:Model, max_seq_len:int):
-
-  
+class vae_model(Model):
   """
-  Biulds a complete VAE model
+  Builds a complete VAE model
 
   Inputs
     encoder     : the encoder model
@@ -131,35 +164,47 @@ def vae_model(encoder:Model, decoder:Model, max_seq_len:int):
   Output:
     the complete VAE model
   """
+  def __init__(self,
+              num_chars:  int, 
+              embedding_dim:int, 
+              max_seq_len:  int, 
+              latent_dim:   int, 
+              n_units:      int,
+              kl_div_loss_rate:float):
 
-  # set the inputs
-  input_x = tf.keras.layers.Input(shape=(max_seq_len, ))
+    super(vae_model, self).__init__()
+    self.encoder = vae_encoder(num_chars, 
+                              embedding_dim, 
+                              max_seq_len, 
+                              latent_dim, 
+                              n_units)
 
-  # get mu, sigma, and z from the encoder output
-  mu, sigma = encoder(input_x)
+    self.decoder = vae_decoder(num_chars, max_seq_len, latent_dim, n_units)
+    self.reparameterization = reparameterization()
+    self.kl_loss_fn = kl_divergence_loss(kl_div_loss_rate)
+    self.kl_loss = 0
+    self.mu = None
+    self.sigma = None
+
+  def compute_kl_loss(self, mu, sigma):
+    self.kl_loss = self.kl_loss_fn(mu, sigma)
   
-  z = Lambda(reparameterization)(([mu, sigma]))
-  # get reconstructed output from the decoder
-  reconstructed = decoder(z)
+  def call(self, inputs):
+    self.mu, self.sigma = self.encoder(inputs)
+    
+    z = self.reparameterization(self.mu, self.sigma)
+   
+    reconstructed = self.decoder(z)
 
-  # define the inputs and outputs of the VAE
-  model = tf.keras.Model(inputs=input_x, outputs=reconstructed)
-
-  # add the KL loss
-  loss = kl_divergence_loss(input_x, z, mu, sigma)
-  model.add_loss(loss)
-
-  return model
+    self.compute_kl_loss(self.mu, self.sigma)
+ 
+    return reconstructed
 
 # Initialize vae model
-def init_vae_models(num_chars, embedding_dim, max_seq_len, latent_dim, n_units):
+def init_vae_models(num_chars, embedding_dim, max_seq_len, latent_dim, n_units, kl_div_loss_rate):
   """ Model initializations here """
-
-  encoder = vae_encoder(num_chars, embedding_dim, max_seq_len, latent_dim, n_units)
-  decoder = vae_decoder(num_chars, max_seq_len, latent_dim, n_units)
-  vae = vae_model(encoder, decoder, max_seq_len)
-  
-  return encoder, decoder, vae
+  vae = vae_model(num_chars, embedding_dim, max_seq_len, latent_dim, n_units, kl_div_loss_rate)  
+  return vae
 
 
 

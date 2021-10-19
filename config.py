@@ -19,7 +19,7 @@ class Config:
                         metadata={"help":"Number of recurrent units"})
   learning_rate: float = field(default=0.002, 
                         metadata={"help":"Learning rate for optimizer"})
-  rate:          float = field(default=0.0, 
+  kl_rate:          float = field(default=0.0, 
                         metadata={"help":"KL annealing rate init (Useful when you want to do KL annealing"})
   annealing_rate:float = field(default=0.0001, 
                         metadata={"help":"KL annealing rate"})
