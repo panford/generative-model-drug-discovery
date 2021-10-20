@@ -9,7 +9,7 @@ from models import init_vae_model
 from config import VaeConfig, TrainingConfig, PathsConfig
 from tensorflow.keras import losses
 from tensorflow.keras import optimizers
-from utils import remove_checkpoints #, config_save
+from utils import remove_checkpoints 
 import pickle
 
 tokenizer = Tokenizer(filters=None,
@@ -51,11 +51,10 @@ train_dataset = smiles_tokenizer.get_padded_data().batch(train_config.batch_size
 
 vae_config.max_seq_len = smiles_tokenizer.max_seq_len
 vae_config.num_chars = smiles_tokenizer.num_chars
-# config.kl_rate = args.kl_rate
 
 vae = init_vae_model(**vars(vae_config))
 
-# print("model configs: ", vae_config)
+
 losses = []
 
 lr_scheduler = tf.keras.optimizers.schedules.PolynomialDecay(
@@ -89,11 +88,6 @@ print("Training Begun")
 print("*"*15)
 
 
-# current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-# train_log_dir = 'logs/gradient_tape/' + current_time + '/train'
-# train_summary_writer = tf.summary.create_file_writer(train_log_dir)
-
-
 for epoch in range(train_config.epochs):
 
   # iterate over the batches of the dataset.
@@ -114,7 +108,7 @@ for epoch in range(train_config.epochs):
     if step % 50 == 0:
       print('Epoch: %s step: %s average loss = %s ' % (epoch, step, loss_metric.result().numpy()))
 
-  # log_results(loss, epoch)
+
 
   if epoch %50 == 0:
     model_chkpt.step.assign(step)

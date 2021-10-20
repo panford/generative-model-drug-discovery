@@ -8,7 +8,7 @@ from models import init_aae_model
 from config import AdversarialAEConfig, TrainingConfig, PathsConfig
 from tensorflow.keras import losses
 from tensorflow.keras import optimizers
-from utils import remove_checkpoints #, config_save
+from utils import remove_checkpoints 
 import pickle
 from tensorflow.keras.backend import random_normal
 
