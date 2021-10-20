@@ -5,7 +5,7 @@ from tensorflow.data import Dataset
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 
 
-class smiles_data():
+class SMILES():
   def __init__(self, data_path, data_args, tokenizer):
     self.data_path = data_path
     self.tokenizer = tokenizer

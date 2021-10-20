@@ -14,7 +14,7 @@ from tensorflow.keras.layers import (Lambda,
                                     Concatenate,
                                     LayerNormalization, 
                                     LeakyReLU)
-# from tensorflow.python.keras.layers.advanced_activations import LeakyReLU      
+    
 class EncoderBase(Model):
   def __init__(self,
                   num_chars:  int, 
@@ -40,7 +40,7 @@ class EncoderBase(Model):
     self.layernorm2 = LayerNormalization()
     self.layernorm3 = LayerNormalization()
 
-    self.dense1 = Dense(latent_dim*2)
+    self.dense = Dense(latent_dim*2)
 
   def compute_base_features(self, inputs):
     x = self.embedding(inputs)
@@ -50,7 +50,7 @@ class EncoderBase(Model):
     x = self.layernorm2(x)
     x = self.bilstm3(x)
     x = self.layernorm3(x)
-    out = self.dense1(x)
+    out = self.dense(x)
     return out
 
 
@@ -81,11 +81,11 @@ class DecoderBase(Model):
 
     self.repeatvect =  RepeatVector(max_seq_len)
     self.lstm1 =       LSTM(n_units, return_sequences=True)
-    self.layernorm1 =  LayerNormalization(axis=-1)
+    self.layernorm1 =  LayerNormalization()
     self.lstm2 =       LSTM(2*n_units, return_sequences=True)
-    self.layernorm2 =  LayerNormalization(axis = -1)
+    self.layernorm2 =  LayerNormalization()
     self.lstm3 =       LSTM(4*n_units, return_sequences=True)
-    self.layernorm3 =  LayerNormalization(axis=-1)
+    self.layernorm3 =  LayerNormalization()
     self.final_dense = Dense(num_chars, activation='softmax')
 
   def call(self, inputs):
@@ -107,15 +107,13 @@ class Vanilla_Encoder(EncoderBase):
                     max_seq_len:int, 
                     latent_dim:   int, 
                     n_units:      int):
-                    
-    # self.num_chars = num_chars
-    # self.embedding_dim = embedding_dim
-    # self.max_seq_len = max_seq_len
-    # self.latent_dim = latent_dim
-    # self.n_units = n_units
 
-    super(Vanilla_Encoder, self).__init__(num_chars, embedding_dim, max_seq_len, latent_dim, n_units)#num_chars, max_seq_len:int, 
-                    # n_units)
+
+    super(Vanilla_Encoder, self).__init__(num_chars, 
+                                          embedding_dim, 
+                                          max_seq_len, 
+                                          latent_dim, 
+                                          n_units)
     self.final_layer = Dense(latent_dim)
 
   def call(self, inputs):
@@ -156,6 +154,12 @@ class VAE_Encoder(EncoderBase):
     sigma = self.sigma(x)
     return mu, sigma
 
+class Decoder(DecoderBase):
+  def __init__(self, num_chars:  int, 
+                    max_seq_len:int, 
+                    n_units: int):
+    super(Decoder, self).__init__(num_chars, max_seq_len, n_units)
+
 
 class Vanilla_Autoencoder(Model):
   """
@@ -189,7 +193,7 @@ class Vanilla_Autoencoder(Model):
                               latent_dim, 
                               n_units)
 
-    self.decoder = VAE_Decoder(num_chars, max_seq_len, n_units)
+    self.decoder = DecoderBase(num_chars, max_seq_len, n_units)
   
   def call(self, inputs):
     z = self.encoder(inputs)
@@ -212,8 +216,7 @@ class reparameterization(Layer):
   def call(self, mu, sigma):
     batch_ = tf.shape(mu)[0]
     dim = tf.shape(mu)[1]
-    eps = random_normal((batch_, dim))
-    
+    eps = random_normal((batch_, dim)) 
     return mu + tf.exp(0.5*sigma) * eps
 
 
@@ -275,64 +278,37 @@ class VAE_model(Model):
     self.decoder = VAE_Decoder(num_chars, max_seq_len, n_units)
     self.reparameterization = reparameterization()
     self.kl_loss_fn = kl_divergence_loss(kl_div_loss_rate)
-    self.kl_loss = 0
-    self.mu = None
-    self.sigma = None
+    # self.mu = None
+    # self.sigma = None
+    self.__kl_loss = 0
 
   def compute_kl_loss(self, mu, sigma):
-    self.kl_loss = self.kl_loss_fn(mu, sigma)
+    self.__kl_loss = self.kl_loss_fn(mu, sigma)
   
   def call(self, inputs):
-    self.mu, self.sigma = self.encoder(inputs)
+    mu, sigma = self.encoder(inputs)
 
-    z = self.reparameterization(self.mu, self.sigma)
-    
-    
+    z = self.reparameterization(mu, sigma)
+
     reconstructed = self.decoder(z)
-
-    self.compute_kl_loss(self.mu, self.sigma)
- 
+    self.compute_kl_loss(mu, sigma)
     return z, reconstructed
 
+  @property
+  def kl_loss(self):
+    return self.__kl_loss
+
 # Initialize vae model
-def init_vae_model(num_chars, embedding_dim, max_seq_len, latent_dim, n_units, kl_div_loss_rate):
+def init_vae_model(num_chars, embedding_dim, 
+                  max_seq_len, latent_dim, n_units, 
+                  kl_div_loss_rate, **kwargs):
+
   """ Model initializations here """
-  vae = VAE_model(num_chars, embedding_dim, max_seq_len, latent_dim, n_units, kl_div_loss_rate)  
+  vae = VAE_model(num_chars, embedding_dim, 
+                  max_seq_len, latent_dim, n_units, 
+                  kl_div_loss_rate)  
   return vae
 
-
-class Generator_AE(Vanilla_Autoencoder):
-  def __init__(self,num_chars, 
-                    embedding_dim, 
-                    max_seq_len, 
-                    latent_dim, 
-                    n_units):
-
-    super(Generator_AE, self).__init__(num_chars, 
-                    embedding_dim, 
-                    max_seq_len, 
-                    latent_dim, 
-                    n_units)
-
-class Generator_VAE(VAE_model):
-  def __init__(self, num_chars, 
-                    embedding_dim, 
-                    max_seq_len, 
-                    latent_dim, 
-                    n_units, 
-                    kl_div_loss_rate:float):
-
-    super(Generator_VAE, self).__init__(num_chars, 
-                                        embedding_dim, 
-                                        max_seq_len, 
-                                        latent_dim, 
-                                        n_units,
-                                        kl_div_loss_rate)
-
-  def call(self, inputs):
-    z,_ = self.encoder(inputs)
-    reconstructed = self.decoder(z) 
-    return reconstructed
     
 
 class Discriminator_AE(Model):
@@ -382,7 +358,10 @@ class Adversarial_Autoencoder(Model):
 
     self.disc = Discriminator_AE(32)
 
-def init_aae_model(num_chars, embedding_dim, max_seq_len, latent_dim, n_units, do_variational, kl_div_loss_rate=None):
+
+
+def init_aae_model(num_chars, embedding_dim, max_seq_len, latent_dim, 
+                      n_units, do_variational, kl_div_loss_rate, **kwargs):
   if do_variational and kl_div_loss_rate is None:
     AssertionError ("Kl div loss rate should be provided to do variational")
   """Initialize models """
@@ -393,6 +372,41 @@ def init_aae_model(num_chars, embedding_dim, max_seq_len, latent_dim, n_units, d
 
   return adversarial_autoencoder
 
-    
+
+
+
+
+# class Generator_AE(Vanilla_Autoencoder):
+#   def __init__(self,num_chars, 
+#                     embedding_dim, 
+#                     max_seq_len, 
+#                     latent_dim, 
+#                     n_units):
+
+#     super(Generator_AE, self).__init__(num_chars, 
+#                     embedding_dim, 
+#                     max_seq_len, 
+#                     latent_dim, 
+#                     n_units)
+
+# class Generator_VAE(VAE_model):
+#   def __init__(self, num_chars, 
+#                     embedding_dim, 
+#                     max_seq_len, 
+#                     latent_dim, 
+#                     n_units, 
+#                     kl_div_loss_rate:float):
+
+#     super(Generator_VAE, self).__init__(num_chars, 
+#                                         embedding_dim, 
+#                                         max_seq_len, 
+#                                         latent_dim, 
+#                                         n_units,
+#                                         kl_div_loss_rate)
+
+#   def call(self, inputs):
+#     z,_ = self.encoder(inputs)
+#     reconstructed = self.decoder(z) 
+#     return reconstructed
 
 

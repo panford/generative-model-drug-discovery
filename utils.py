@@ -5,11 +5,6 @@ from tensorflow.keras.backend import random_normal
 import os
 import pickle
 
-def config_save(config_path, config_dict):
-  # config_dict_path = os.path.join(config_path, 'config.pkl')
-  with open(config_path, 'wb') as config_file:
-    pickle.dump(config_dict, config_file)
-
 def load_config(config_path):
   # config_dict_path = os.path.join(config_path, 'config.pkl')
   with open(config_path, 'rb') as config_file:
@@ -19,12 +14,14 @@ def load_config(config_path):
 
 
 def remove_checkpoints(checkpoint_path):
-  for file_name in os.listdir(checkpoint_path):
+  try:
+    for file_name in os.listdir(checkpoint_path):
       # construct full file path
       file = checkpoint_path + file_name
       if os.path.isfile(file):
-          print('Deleting file:', file)
-          os.remove(file)
+        os.remove(file)
+  except:
+    pass
 
 def compute_smile_prop(smile):
 
