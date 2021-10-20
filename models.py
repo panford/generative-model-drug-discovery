@@ -24,13 +24,6 @@ class EncoderBase(Model):
                   n_units:      int):
     super(EncoderBase, self).__init__()
 
-    # self.num_chars = num_chars
-    # self.embedding_dim = embedding_dim
-    # self.max_seq_len = max_seq_len
-    # self.latent_dim = latent_dim
-    # self.n_units = n_units
-
-
     self.embedding = Embedding(num_chars, embedding_dim, input_length=max_seq_len, mask_zero=True)
     self.bilstm1 = Bidirectional(LSTM(n_units, return_sequences=True))
     self.bilstm2 = Bidirectional(LSTM(2*n_units, return_sequences=True))
