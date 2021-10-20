@@ -21,7 +21,7 @@ def load_config(config_path):
 def remove_checkpoints(checkpoint_path):
   for file_name in os.listdir(checkpoint_path):
       # construct full file path
-      file = path + file_name
+      file = checkpoint_path + file_name
       if os.path.isfile(file):
           print('Deleting file:', file)
           os.remove(file)

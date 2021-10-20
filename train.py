@@ -4,7 +4,7 @@ import argparse
 import os
 from prepare_data import smiles_data
 from tensorflow.keras.preprocessing.text import Tokenizer
-from models import init_vae_models
+from models import init_vae_model
 from config import Config 
 from tensorflow.keras import losses
 from tensorflow.keras import optimizers
@@ -48,7 +48,7 @@ config.max_seq_len = smiles_tokenizer.max_seq_len
 config.num_chars = smiles_tokenizer.num_chars
 config.kl_rate = args.kl_rate
 
-vae = init_vae_models(config.num_chars, 
+vae = init_vae_model(config.num_chars, 
                       config.embedding_dim, 
                       config.max_seq_len, 
                       config.latent_dim, 
@@ -76,7 +76,7 @@ chkpt_dir = os.path.join(args.chkpt_dir, 'vae_model.ckpt')
 config_save(args.config_file_path, vars(config)) #save config
 
 if args.restart_chkpt:
-  remove(args.chkpt_dir)
+  os.remove(args.chkpt_dir)
 
 chkpt_manager = tf.train.CheckpointManager(
     model_chkpt, directory=chkpt_dir, max_to_keep=1)
@@ -94,7 +94,7 @@ for epoch in range(config.epochs):
     with tf.GradientTape() as tape:
 
 
-      reconstructed = vae(batch) 
+      _, reconstructed = vae(batch) 
 
       loss = spce_loss(batch, reconstructed) 
       
